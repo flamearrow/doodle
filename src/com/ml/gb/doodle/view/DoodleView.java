@@ -1,16 +1,128 @@
 package com.ml.gb.doodle.view;
 
+import java.util.HashMap;
+import java.util.Map;
+
 import android.content.Context;
+import android.graphics.Bitmap;
+import android.graphics.Canvas;
+import android.graphics.Color;
+import android.graphics.Paint;
+import android.graphics.Path;
+import android.graphics.Point;
+import android.view.MotionEvent;
 import android.view.View;
 
 public class DoodleView extends View {
+	// threshold to define a drag
+	private static final float TOUCH_TOLERANCE = 10;
+
+	private Bitmap bm;
+	private Canvas bitmapCanvas;
+	private Paint paintScreen;
+	private Paint paintLine;
+	private Map<Integer, Path> pathMap;
+	private Map<Integer, Point> previousPointMap;
 
 	public DoodleView(Context context) {
 		super(context);
-		// TODO Auto-generated constructor stub
+		paintScreen = new Paint();
+
+		paintLine = new Paint();
+		paintLine.setAntiAlias(true);
+		paintLine.setColor(Color.BLACK);
+		paintLine.setStyle(Paint.Style.STROKE);
+		paintLine.setStrokeWidth(5);
+		paintLine.setStrokeCap(Paint.Cap.ROUND);
+		pathMap = new HashMap<Integer, Path>();
+		previousPointMap = new HashMap<Integer, Point>();
+	}
+
+	@Override
+	protected void onSizeChanged(int w, int h, int oldw, int oldh) {
+		bm = Bitmap.createBitmap(getWidth(), getHeight(),
+				Bitmap.Config.ARGB_8888);
+		bitmapCanvas = new Canvas(bm);
+		// set the entire cavans to white
+		bm.eraseColor(Color.WHITE);
 	}
 
 	public void clear() {
+		pathMap.clear();
+		previousPointMap.clear();
+		bm.eraseColor(Color.WHITE);
+		// redraw the view - it will force onDraw() to be called in the future
+		invalidate();
+	}
+
+	public void setDrawingColor(int color) {
+		paintLine.setColor(color);
+	}
+
+	public int getDrawingColor() {
+		return paintLine.getColor();
+	}
+
+	public void setLineWidth(int width) {
+		paintLine.setStrokeWidth(width);
+	}
+
+	public int getLineWidth() {
+		return (int) paintLine.getStrokeWidth();
+	}
+
+	@Override
+	protected void onDraw(Canvas canvas) {
+		canvas.drawBitmap(bm, 0, 0, paintScreen);
+
+		for (int key : pathMap.keySet()) {
+			canvas.drawPath(pathMap.get(key), paintLine);
+		}
+	}
+
+	// can handle this using a gesture listener
+	@Override
+	public boolean onTouchEvent(MotionEvent event) {
+		int action = event.getActionMasked();
+		int actionIndex = event.getActionIndex();
+
+		// The individual fingers or other objects that generate movement traces are referred to as pointers
+		// first finger touches: ACTION_DOWN
+		//  other finger touches: ACTION_POINTER_DOWN
+		// press
+		if (action == MotionEvent.ACTION_DOWN
+				|| action == MotionEvent.ACTION_POINTER_DOWN) {
+			touchStarted(event.getX(actionIndex), event.getY(actionIndex),
+					event.getPointerId(actionIndex));
+		}
+		// release
+		else if (action == MotionEvent.ACTION_UP
+				|| action == MotionEvent.ACTION_POINTER_UP) {
+			touchEnded(event.getPointerId(actionIndex));
+		}
+		// drag
+		else {
+			touchMoved(event);
+		}
+
+		invalidate();
+		return true;
+	}
+
+	private void touchStarted(float x, float y, int lineID) {
 		// TODO
 	}
+
+	private void touchMoved(MotionEvent event) {
+		// TODO
+	}
+
+	private void touchEnded(int lineID) {
+		// TODO
+	}
+
+	public void saveImage() {
+		// TODO
+	}
+
 }
