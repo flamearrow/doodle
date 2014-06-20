@@ -127,7 +127,11 @@ public class DoodleView extends View {
 		invalidate();
 		return true;
 	}
-
+	
+	// note the pathMap always just stores the current active pointer number of paths
+	// i.e only current pressed paths are stored
+	// when dragging, iterate through all paths and redraw
+	// when released, reset the path, since the path is already stored and drawn in bitMap, we no longer need to store it
 	private void touchStarted(float x, float y, int lineID) {
 		Path path;
 		Point point; // last point in Path
