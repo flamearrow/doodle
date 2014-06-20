@@ -2,10 +2,6 @@ package com.ml.gb.doodle.view;
 
 import java.io.IOException;
 import java.io.OutputStream;
-import java.util.HashMap;
-import java.util.Map;
-
-import com.ml.gb.doodle.R;
 
 import android.content.ContentValues;
 import android.content.Context;
@@ -18,10 +14,13 @@ import android.graphics.Point;
 import android.net.Uri;
 import android.provider.MediaStore.Images;
 import android.util.AttributeSet;
+import android.util.SparseArray;
 import android.view.Gravity;
 import android.view.MotionEvent;
 import android.view.View;
 import android.widget.Toast;
+
+import com.ml.gb.doodle.R;
 
 public class DoodleView extends View {
 	// threshold to define a drag
@@ -31,8 +30,12 @@ public class DoodleView extends View {
 	private Canvas bitmapCanvas;
 	private Paint paintScreen;
 	private Paint paintLine;
-	private Map<Integer, Path> pathMap;
-	private Map<Integer, Point> previousPointMap;
+	// SparseArray maps int to Object
+	// it's more efficient because 
+	//	1) it dones't auto box
+	//  2) it doesn't rely on the Integer objects hash to identify uniqueness
+	private SparseArray<Path> pathMap;
+	private SparseArray<Point> previousPointMap;
 
 	// note: this two param constructor needs to be overriden
 	public DoodleView(Context context, AttributeSet atts) {
@@ -45,8 +48,8 @@ public class DoodleView extends View {
 		paintLine.setStyle(Paint.Style.STROKE);
 		paintLine.setStrokeWidth(5);
 		paintLine.setStrokeCap(Paint.Cap.ROUND);
-		pathMap = new HashMap<Integer, Path>();
-		previousPointMap = new HashMap<Integer, Point>();
+		pathMap = new SparseArray<Path>();
+		previousPointMap = new SparseArray<Point>();
 	}
 
 	@Override
@@ -85,22 +88,27 @@ public class DoodleView extends View {
 	@Override
 	protected void onDraw(Canvas canvas) {
 		canvas.drawBitmap(bm, 0, 0, paintScreen);
-
-		for (int key : pathMap.keySet()) {
-			canvas.drawPath(pathMap.get(key), paintLine);
+		for (int i = 0; i < pathMap.size(); i++) {
+			canvas.drawPath(pathMap.valueAt(i), paintLine);
 		}
 	}
 
-	// can handle this using a gesture listener
+	// Multi touch handling:
+	//  each event is from a 'pointer' touch the screen to it leaves the screen
+	//   when an event is happening, it will be assigned a pointerID, as long as the pointer doesn't leave screen,
+	//   the id assigned to this event/pointer will never change
+	//  pointer index always start from 0, its max value is the (number of pointers touched on screen at the moment)-1 
+	//				the number can be get from event.getPointerCount()
+	//  when a new MotionEvent happens, an actionIndex is created. Although actionIndex is still created by a pointer,
+	//   the index is always changing. Therefore in order to find a correct pointerIndex
+	//	 we need to use event.getPointerId(actionIndex) to get it.
 	@Override
 	public boolean onTouchEvent(MotionEvent event) {
 		int action = event.getActionMasked();
 		int actionIndex = event.getActionIndex();
-
 		// The individual fingers or other objects that generate movement traces are referred to as pointers
 		// first finger touches: ACTION_DOWN
 		//  other finger touches: ACTION_POINTER_DOWN
-		// press
 		if (action == MotionEvent.ACTION_DOWN
 				|| action == MotionEvent.ACTION_POINTER_DOWN) {
 			touchStarted(event.getX(actionIndex), event.getY(actionIndex),
@@ -123,9 +131,7 @@ public class DoodleView extends View {
 	private void touchStarted(float x, float y, int lineID) {
 		Path path;
 		Point point; // last point in Path
-
-		if (pathMap.containsKey(lineID)) {
-			path = pathMap.get(lineID);
+		if ((path = pathMap.get(lineID)) != null) {
 			path.reset();
 
 			point = previousPointMap.get(lineID);
@@ -146,7 +152,7 @@ public class DoodleView extends View {
 			int pointerID = event.getPointerId(i);
 			int pointerIndex = event.findPointerIndex(pointerID);
 
-			if (pathMap.containsKey(pointerID)) {
+			if (pathMap.get(pointerID) != null) {
 				float newX = event.getX(pointerIndex);
 				float newY = event.getY(pointerIndex);
 
