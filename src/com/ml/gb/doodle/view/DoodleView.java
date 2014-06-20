@@ -1,8 +1,13 @@
 package com.ml.gb.doodle.view;
 
+import java.io.IOException;
+import java.io.OutputStream;
 import java.util.HashMap;
 import java.util.Map;
 
+import com.ml.gb.doodle.R;
+
+import android.content.ContentValues;
 import android.content.Context;
 import android.graphics.Bitmap;
 import android.graphics.Canvas;
@@ -10,8 +15,13 @@ import android.graphics.Color;
 import android.graphics.Paint;
 import android.graphics.Path;
 import android.graphics.Point;
+import android.net.Uri;
+import android.provider.MediaStore.Images;
+import android.util.AttributeSet;
+import android.view.Gravity;
 import android.view.MotionEvent;
 import android.view.View;
+import android.widget.Toast;
 
 public class DoodleView extends View {
 	// threshold to define a drag
@@ -24,8 +34,9 @@ public class DoodleView extends View {
 	private Map<Integer, Path> pathMap;
 	private Map<Integer, Point> previousPointMap;
 
-	public DoodleView(Context context) {
-		super(context);
+	// note: this two param constructor needs to be overriden
+	public DoodleView(Context context, AttributeSet atts) {
+		super(context, atts);
 		paintScreen = new Paint();
 
 		paintLine = new Paint();
@@ -110,19 +121,89 @@ public class DoodleView extends View {
 	}
 
 	private void touchStarted(float x, float y, int lineID) {
-		// TODO
+		Path path;
+		Point point; // last point in Path
+
+		if (pathMap.containsKey(lineID)) {
+			path = pathMap.get(lineID);
+			path.reset();
+
+			point = previousPointMap.get(lineID);
+		} else {
+			path = new Path();
+			pathMap.put(lineID, path);
+			point = new Point();
+			previousPointMap.put(lineID, point);
+		}
+
+		path.moveTo(x, y);
+		point.x = (int) x;
+		point.y = (int) y;
 	}
 
 	private void touchMoved(MotionEvent event) {
-		// TODO
+		for (int i = 0; i < event.getPointerCount(); i++) {
+			int pointerID = event.getPointerId(i);
+			int pointerIndex = event.findPointerIndex(pointerID);
+
+			if (pathMap.containsKey(pointerID)) {
+				float newX = event.getX(pointerIndex);
+				float newY = event.getY(pointerIndex);
+
+				Path path = pathMap.get(pointerID);
+				Point point = previousPointMap.get(pointerID);
+
+				float dX = Math.abs(newX - point.x);
+				float dY = Math.abs(newY - point.y);
+
+				if (dX >= TOUCH_TOLERANCE || dY >= TOUCH_TOLERANCE) {
+					// a path is a curve that's defined by a couple of points
+					// each time we tracked a new point, we add to the path
+					path.quadTo(point.x, point.y, (newX + point.x) / 2,
+							(newY + point.y) / 2);
+					point.x = (int) newX;
+					point.y = (int) newY;
+				}
+			}
+		}
 	}
 
 	private void touchEnded(int lineID) {
-		// TODO
+		Path path = pathMap.get(lineID);
+		bitmapCanvas.drawPath(path, paintLine);
+		path.reset();
 	}
 
+	// store the picture to system gallery
 	public void saveImage() {
-		// TODO
-	}
+		String fileName = "Doodle" + System.currentTimeMillis();
+		ContentValues values = new ContentValues();
+		values.put(Images.Media.TITLE, fileName);
+		values.put(Images.Media.DATE_ADDED, System.currentTimeMillis());
+		values.put(Images.Media.MIME_TYPE, "image/jpg");
+		// the uri where the image is to be stored
+		Uri uri = getContext().getContentResolver().insert(
+				Images.Media.EXTERNAL_CONTENT_URI, values);
+		try {
+			OutputStream outStream = getContext().getContentResolver()
+					.openOutputStream(uri);
+			// note we use the 'data' which is the bitmap to compress
+			bm.compress(Bitmap.CompressFormat.JPEG, 100, outStream);
 
+			outStream.flush();
+			outStream.close();
+
+			Toast message = Toast.makeText(getContext(),
+					R.string.message_saved, Toast.LENGTH_SHORT);
+			message.setGravity(Gravity.CENTER, message.getXOffset() / 2,
+					message.getYOffset() / 2);
+			message.show();
+		} catch (IOException e) {
+			Toast message = Toast.makeText(getContext(),
+					R.string.message_error_saving, Toast.LENGTH_SHORT);
+			message.setGravity(Gravity.CENTER, message.getXOffset() / 2,
+					message.getYOffset() / 2);
+			message.show();
+		}
+	}
 }
