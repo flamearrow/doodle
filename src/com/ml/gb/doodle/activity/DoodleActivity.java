@@ -45,7 +45,7 @@ public class DoodleActivity extends Activity {
 	private static final int SAVE_MENU_ID = Menu.FIRST + 4;
 
 	// is it really being shaken?
-	private static final float ACCELERATION_THESHOLD = 15000;
+	private static final float ACCELERATION_THESHOLD = 200000;
 
 	// choose color or choose line?
 	private Dialog currentDialog;
@@ -112,7 +112,8 @@ public class DoodleActivity extends Activity {
 						* (currentAcceleration - lastAcceleration);
 
 				// if shake, prompt to erase
-				if (acceleration > ACCELERATION_THESHOLD) {
+				if (Math.abs(acceleration) > ACCELERATION_THESHOLD) {
+					Log.d("MLGB", "acceleration" + acceleration);
 					// can't directly use this because it's inner class
 					AlertDialog.Builder builder = new AlertDialog.Builder(
 							DoodleActivity.this);
@@ -140,6 +141,8 @@ public class DoodleActivity extends Activity {
 									dialog.cancel();
 								}
 							});
+					dialogIsVisible.set(true);
+					builder.show();
 				}
 			}
 		}
@@ -246,12 +249,12 @@ public class DoodleActivity extends Activity {
 
 		@Override
 		public void onStartTrackingTouch(SeekBar seekBar) {
-			Log.d("mlgb", "you started touch!");
+			//			Log.d("mlgb", "you started touch!");
 		}
 
 		@Override
 		public void onStopTrackingTouch(SeekBar seekBar) {
-			Log.d("mlgb", "you stopped touch!");
+			//			Log.d("mlgb", "you stopped touch!");
 		}
 	};
 
